@@ -11,7 +11,7 @@
     "predeploy": "expo export:web",
     "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://<SrNando>.github.io/<AccidentReport>",
+  "homepage": "https://SrNando.github.io/AccidentReport",
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
     "@react-native-community/datetimepicker": "^8.3.0",

@@ -1,0 +1,61 @@
+{
+  "name": "accidentreport",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "predeploy": "expo export:web",
+    "deploy": "gh-pages -d dist"
+  },
+  "homepage": "https://<SrNando>.github.io/<AccidentReport>",
+  "dependencies": {
+    "@expo/metro-runtime": "~5.0.4",
+    "@react-native-community/datetimepicker": "^8.3.0",
+    "@react-native-masked-view/masked-view": "^0.3.2",
+    "@react-native-picker/picker": "^2.11.0",
+    "@react-navigation/native": "^7.1.9",
+    "@react-navigation/native-stack": "^7.3.13",
+    "@react-navigation/stack": "^7.3.2",
+    "docx": "^9.5.0",
+    "expo": "~53.0.9",
+    "expo-document-picker": "~13.1.5",
+    "expo-file-system": "~18.1.10",
+    "expo-image-picker": "~16.1.4",
+    "expo-sharing": "~13.1.5",
+    "expo-status-bar": "~2.2.3",
+    "expo-system-ui": "~5.0.7",
+    "file-saver": "^2.0.5",
+    "jszip": "^3.10.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.2",
+    "react-native-dialog": "^9.3.0",
+    "react-native-fs": "^2.20.0",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-reanimated": "~3.17.4",
+    "react-native-safe-area-context": "^5.4.0",
+    "react-native-screens": "~4.10.0",
+    "react-native-share": "^12.0.11",
+    "react-native-web": "^0.20.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@react-native-community/cli": "latest",
+    "gh-pages": "^6.3.0"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-dialog",
+          "react-native-fs",
+          "docx"
+        ]
+      }
+    }
+  }
+}

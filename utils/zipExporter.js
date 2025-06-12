@@ -41,5 +41,6 @@ export async function exportFilesAsZip() {
 
   zip.generateAsync({ type: "blob" }).then((content) => {
     saveAs(content, "relatorio_anexos.zip");
+    console.log("[exportFilesAsZip] Arquivos exportados com sucesso.");
   });
 }

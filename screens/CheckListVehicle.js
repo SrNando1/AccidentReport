@@ -182,7 +182,7 @@ const CheckListVehicle = () => {
               await clearReportData();
 
               // Adiciona delay antes de recarregar
-              await new Promise((resolve) => setTimeout(resolve, 500));
+              await new Promise((resolve) => setTimeout(resolve, 1000));
 
               window.location.reload();
             }}

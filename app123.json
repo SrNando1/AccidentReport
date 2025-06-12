@@ -4,7 +4,7 @@
     "slug": "AccidentReport",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/AccidentReportIcon",
+    "icon": "./assets/AccidentReportIcon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -25,7 +25,12 @@
       "package": "com.srnando.AccidentReport"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/AccidentReportIcon.png",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "build": {
+        "publicPath": "/AccidentReport/"
+      }
     },
     "extra": {
       "eas": {

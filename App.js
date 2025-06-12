@@ -1,7 +1,7 @@
 import "react-native-gesture-handler";
 import * as React from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import { createStackNavigator } from "@react-navigation/stack";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen from "./screens/HomeScreen";
 import CheckListVehicle from "./screens/CheckListVehicle";
 import SummaryScreen from "./screens/SummaryScreen";
@@ -16,40 +16,96 @@ import DataDriverB from "./screens/InvestigationDetailsScreens/DriversDataScreen
 import AccidentCharacterizationScreen from "./screens/AccidentCharacterizationScreen";
 import ConclusionScreen from "./screens/ConclusionScreen";
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="CheckListVehicle" component={CheckListVehicle} />
-        <Stack.Screen name="Sumário" component={SummaryScreen} />
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerShown: true,
+          headerTitleAlign: "center",
+          headerTitleStyle: {
+            fontWeight: "bold",
+            fontSize: 18,
+          },
+          headerBackTitleVisible: false,
+          animation: "slide_from_right",
+          contentStyle: { backgroundColor: "#f5f5f5" },
+        }}
+      >
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ title: "Início" }}
+        />
+        <Stack.Screen
+          name="CheckListVehicle"
+          component={CheckListVehicle}
+          options={{ title: "Checklist do Veículo" }}
+        />
+        <Stack.Screen
+          name="Sumário"
+          component={SummaryScreen}
+          options={{ title: "Resumo da Investigação" }}
+        />
         <Stack.Screen
           name="Detalhes de Averiguação"
           component={InvestigationDetailsScreen}
+          options={{ title: "Detalhes da Averiguação" }}
         />
         <Stack.Screen
           name="Ações Desenvolvidas"
           component={ActionsDevelopedScreen}
+          options={{ title: "Ações Desenvolvidas" }}
         />
-        <Stack.Screen name="Causa Raiz do Incidente" component={RootCause} />
+        <Stack.Screen
+          name="Causa Raiz do Incidente"
+          component={RootCause}
+          options={{ title: "Causa Raiz" }}
+        />
         <Stack.Screen
           name="2.2 Descrição dos Danos Causados"
           component={DamageCaused}
+          options={{ title: "Danos Causados" }}
         />
         <Stack.Screen
           name="2.3 Dados Dos Condutores Envolvidos"
           component={DriversData}
+          options={{ title: "Dados dos Condutores" }}
         />
-        <Stack.Screen name="2.1 Enquadramento" component={FramingScreen} />
-        <Stack.Screen name="Dados Condutor A" component={DataDriverA} />
-        <Stack.Screen name="Dados Condutor B" component={DataDriverB} />
+        <Stack.Screen
+          name="2.1 Enquadramento"
+          component={FramingScreen}
+          options={{
+            title: "Enquadramento",
+            animation: "fade_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="Dados Condutor A"
+          component={DataDriverA}
+          options={{ title: "Condutor A" }}
+        />
+        <Stack.Screen
+          name="Dados Condutor B"
+          component={DataDriverB}
+          options={{ title: "Condutor B" }}
+        />
         <Stack.Screen
           name="Caraterização de Acidente"
           component={AccidentCharacterizationScreen}
+          options={{ title: "Caracterização do Acidente" }}
         />
-        <Stack.Screen name="Conclusão" component={ConclusionScreen} />
+        <Stack.Screen
+          name="Conclusão"
+          component={ConclusionScreen}
+          options={{
+            title: "Conclusão",
+            animation: "fade",
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

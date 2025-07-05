@@ -6,6 +6,8 @@ import {
   Text,
   ScrollView,
   Image,
+  Platform,
+  Alert,
 } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { getReportData, clearReportData } from "../data/reportData";
@@ -174,21 +176,67 @@ const CheckListVehicle = () => {
         </View>
         {/* BOTÃO GERAR DOCUMENTO - FORA DO MAP */}
         {allSectionsFilled && (
-          <TouchableOpacity
-            style={styles.generateButton}
-            onPress={async () => {
-              await showExportOptions();
-              await exportFilesAsZip();
-              await clearReportData();
+          <View style={{ alignItems: "center" }}>
+            {/* Botão principal */}
+            <TouchableOpacity
+              style={styles.generateButton}
+              onPress={async () => {
+                console.log(
+                  "👾 onPress Gerar Documento – antes de showExportOptions"
+                );
+                await showExportOptions();
+                console.log(
+                  "👾 onPress Gerar Documento – depois de showExportOptions"
+                );
+                await exportFilesAsZip();
+                if (Platform.OS === "web") {
+                  await clearReportData();
+                  window.location.reload();
+                }
+              }}
+            >
+              <Text style={styles.generateButtonText}>Gerar Documento</Text>
+            </TouchableOpacity>
 
-              // Adiciona delay antes de recarregar
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-
-              window.location.reload();
-            }}
-          >
-            <Text style={styles.generateButtonText}>Gerar Documento</Text>
-          </TouchableOpacity>
+            {/* Botão Novo Relatório — só no mobile */}
+            {Platform.OS !== "web" && (
+              <TouchableOpacity
+                style={[
+                  styles.generateButton,
+                  { backgroundColor: "#ccc", marginTop: 10 },
+                ]}
+                onPress={async () => {
+                  console.log("Iniciando limpeza");
+                  try {
+                    await clearReportData();
+                    console.log("clearReportData ok");
+                    Alert.alert(
+                      "Novo Relatório",
+                      "Dados limpos com sucesso.",
+                      [
+                        {
+                          text: "OK",
+                          onPress: () => {
+                            console.log("OK do alerta — navegando");
+                            navigation.reset({
+                              index: 0,
+                              routes: [{ name: "Home" }],
+                            });
+                          },
+                        },
+                      ],
+                      { cancelable: false }
+                    );
+                  } catch (err) {
+                    console.error("Erro ao limpar dados:", err);
+                    Alert.alert("Erro", "Não foi possível limpar os dados.");
+                  }
+                }}
+              >
+                <Text style={styles.generateButtonText}>Novo Relatório</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
     </ScrollView>

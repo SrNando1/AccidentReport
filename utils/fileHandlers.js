@@ -1,4 +1,3 @@
-// fileHandlers.js
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
@@ -17,6 +16,22 @@ const getFileData = async (uri) => {
   }
 };
 
+// Garante que o URI seja um file:// válido, copiando content:// no Android
+const ensureFileUri = async (uri) => {
+  if (Platform.OS === "android" && uri.startsWith("content://")) {
+    const filename = uri.split("/").pop();
+    const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+    try {
+      await FileSystem.copyAsync({ from: uri, to: fileUri });
+      return fileUri;
+    } catch (err) {
+      console.error("Erro ao copiar URI de conteúdo:", err);
+      return uri;
+    }
+  }
+  return uri;
+};
+
 export const pickDocument = async (sectionId, onFileSelected) => {
   try {
     const result = await DocumentPicker.getDocumentAsync({
@@ -25,12 +40,14 @@ export const pickDocument = async (sectionId, onFileSelected) => {
 
     if (!result.canceled) {
       const file = result.assets[0];
-      const modified = await getFileData(file.uri);
+      // Converte content:// em file:// se necessário
+      const uri = await ensureFileUri(file.uri);
+      const modified = await getFileData(uri);
 
       onFileSelected(
         {
           name: file.name,
-          uri: file.uri,
+          uri,
           modified,
         },
         sectionId
@@ -58,7 +75,9 @@ export const openCamera = async (sectionId, onFileSelected) => {
     });
 
     if (!result.canceled) {
-      const uri = result.assets[0].uri;
+      // Mesmo que venha file://, garantimos via ensureFileUri
+      const originalUri = result.assets[0].uri;
+      const uri = await ensureFileUri(originalUri);
       const modified = await getFileData(uri);
       const name = uri.split("/").pop();
 

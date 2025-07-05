@@ -1,40 +1,29 @@
-export default {
-  expo: {
-    name: "AccidentReport",
-    slug: "AccidentReport",
-    version: "1.0.0",
-    orientation: "portrait",
-    icon: "./assets/AccidentReportIcon.png",
-    userInterfaceStyle: "light",
-    splash: {
-      image: "./assets/splash-icon.png",
-      resizeMode: "contain",
-      backgroundColor: "#ffffff",
-    },
-    ios: {
-      supportsTablet: true,
-    },
-    android: {
-      permissions: ["READ_EXTERNAL_STORAGE"],
-      adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#ffffff",
-      },
-      edgeToEdgeEnabled: true,
-      package: "com.srnando.AccidentReport",
-    },
-    web: {
-      favicon: "./assets/AccidentReportIcon.png",
-      themeColor: "#ffffff",
-      backgroundColor: "#ffffff",
-      build: {
-        publicPath: "/AccidentReport/",
-      },
-    },
-    extra: {
-      eas: {
-        projectId: "57978877-9df4-41d7-b908-3c9fa35906d7",
-      },
+import "dotenv/config";
+
+// Configuração dinâmica do Expo
+export default ({ config }) => ({
+  // Identificadores do projeto (devClient e EAS)
+  name: "AccidentReport",
+  slug: "AccidentReport",
+  version: config.version,
+
+  // Ícone e splash (só resolvidos em Managed, mas ok se mantidos)
+  icon: "./assets/AccidentReportIcon.png",
+  splash: {
+    image: "./assets/splash-icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#ffffff",
+  },
+
+  // Definição do package Android para prebuild
+  android: {
+    package: "com.srnando.AccidentReport",
+  },
+
+  // Configurações nativas são lidas diretamente em android/ e ios/
+  extra: {
+    eas: {
+      projectId: "57978877-9df4-41d7-b908-3c9fa35906d7",
     },
   },
-};
+});

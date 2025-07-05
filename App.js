@@ -1,7 +1,12 @@
 import "react-native-gesture-handler";
 import * as React from "react";
+import { useEffect, useState } from "react";
+import { View, Text, ActivityIndicator } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { initializeReportData } from "./data/reportData"; // <-- importa a função async
+
+// Importações de screens
 import HomeScreen from "./screens/HomeScreen";
 import CheckListVehicle from "./screens/CheckListVehicle";
 import SummaryScreen from "./screens/SummaryScreen";
@@ -19,6 +24,25 @@ import ConclusionScreen from "./screens/ConclusionScreen";
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      await initializeReportData();
+      setIsReady(true);
+    }
+    loadData();
+  }, []);
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+        <Text>A carregar dados...</Text>
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -26,10 +50,7 @@ export default function App() {
         screenOptions={{
           headerShown: true,
           headerTitleAlign: "center",
-          headerTitleStyle: {
-            fontWeight: "bold",
-            fontSize: 18,
-          },
+          headerTitleStyle: { fontWeight: "bold", fontSize: 18 },
           headerBackTitleVisible: false,
           animation: "slide_from_right",
           contentStyle: { backgroundColor: "#f5f5f5" },
@@ -78,10 +99,7 @@ export default function App() {
         <Stack.Screen
           name="2.1 Enquadramento"
           component={FramingScreen}
-          options={{
-            title: "Enquadramento",
-            animation: "fade_from_bottom",
-          }}
+          options={{ title: "Enquadramento", animation: "fade_from_bottom" }}
         />
         <Stack.Screen
           name="Dados Condutor A"
@@ -101,10 +119,7 @@ export default function App() {
         <Stack.Screen
           name="Conclusão"
           component={ConclusionScreen}
-          options={{
-            title: "Conclusão",
-            animation: "fade",
-          }}
+          options={{ title: "Conclusão", animation: "fade" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

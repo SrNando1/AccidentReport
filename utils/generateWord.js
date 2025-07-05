@@ -1,20 +1,68 @@
-import RNFS from "react-native-fs";
-import Share from "react-native-share";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import { getReportData } from "../data/reportData";
+import { causeData } from "../data/rootCauseData";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import { Alert } from "react-native";
+import { Buffer } from "buffer";
 
-export async function generateWordReport(shouldShare = false) {
+export async function generateWordReport() {
   const data = getReportData();
 
   if (!data || typeof data !== "object") {
-    throw new Error("Dados do relatório estão indefinidos ou mal formatados.");
+    Alert.alert("Erro", "Dados do relatório estão vazios ou corrompidos.");
+    return;
   }
+
+  const hasAlgumConteudo =
+    !!data.summary ||
+    !!data.vehicleA ||
+    !!data.vehicleB ||
+    !!data.dateofoccurrence ||
+    !!data.DamageCausedDescription;
+
+  if (!hasAlgumConteudo) {
+    Alert.alert(
+      "Aviso",
+      "O relatório está completamente vazio. Preencha pelo menos um campo."
+    );
+    return;
+  }
+
+  const getNameFromCauseData = (
+    causeData,
+    typeId,
+    categoryId,
+    subcategoryId
+  ) => {
+    const type = causeData.types.find((t) => t.id === typeId);
+    const category = causeData.categories[typeId]?.find(
+      (c) => c.id === categoryId
+    );
+    const categoryNum = categoryId?.split("-")[1];
+    const subcategoryKey = `${typeId}-${categoryNum}`;
+    const subcategory = causeData.subcategories[subcategoryKey]?.find(
+      (s) => s.id === subcategoryId
+    );
+
+    return {
+      typeName: type?.name || "Não selecionado",
+      categoryName: category?.name || "Não selecionado",
+      subcategoryName: subcategory?.name || "Não selecionado",
+    };
+  };
+
+  const { typeName, categoryName, subcategoryName } = getNameFromCauseData(
+    causeData,
+    data.RootCause?.rootCauseType,
+    data.RootCause?.rootCauseCategory,
+    data.RootCause?.rootCauseSubcategory
+  );
 
   try {
     const doc = new Document({
       sections: [
         {
-          properties: {},
           children: [
             new Paragraph({
               heading: HeadingLevel.HEADING_1,
@@ -26,8 +74,7 @@ export async function generateWordReport(shouldShare = false) {
                 }),
               ],
             }),
-            new Paragraph({}),
-            new Paragraph({ text: "Sumário:", bold: true }),
+            new Paragraph({ text: "" }),
             new Paragraph({ text: `Resumo: ${data.summary || "N/A"}` }),
 
             // Detalhes de Averiguação
@@ -299,30 +346,25 @@ export async function generateWordReport(shouldShare = false) {
       ],
     });
 
-    // ✅ Usa método direto do `docx` para gerar base64
-    const base64data = await Packer.toBase64String(doc);
-    const fileName = "RelatorioAcidente.docx";
-    const path = `${RNFS.DocumentDirectoryPath}/${fileName}`;
-
-    // Salva o ficheiro no dispositivo
-    await RNFS.writeFile(path, base64data, "base64");
-    console.log("Arquivo salvo em:", path);
-
-    if (shouldShare) {
-      const options = {
-        url: `file://${path}`,
-        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        title: "Partilhar Relatório",
-        subject: "Relatório de Acidente",
-        failOnCancel: false,
-      };
-
-      await Share.open(options);
+    let base64Doc;
+    try {
+      base64Doc = await Packer.toBase64String(doc);
+    } catch (err) {
+      console.error("Erro ao gerar o ficheiro DOCX:", err);
+      Alert.alert("Erro", "Falha ao gerar o documento. Verifique os dados.");
+      return;
     }
 
-    return path;
+    const filePath = FileSystem.documentDirectory + "RelatorioAcidente.docx";
+    await FileSystem.writeAsStringAsync(filePath, base64Doc, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    console.log("📄 Relatório guardado em:", filePath);
+    await Sharing.shareAsync(filePath);
+    console.log("✅ Relatório (mobile) gerado e partilhado com sucesso!");
   } catch (error) {
-    console.error("Erro ao gerar relatório:", error);
-    throw new Error("Ocorreu um erro ao gerar o relatório: " + error.message);
+    console.error("Erro geral ao gerar o relatório:", error);
+    Alert.alert("Erro inesperado", "Algo correu mal ao gerar o documento.");
   }
 }

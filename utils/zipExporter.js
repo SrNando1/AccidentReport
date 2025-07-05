@@ -1,9 +1,15 @@
-// src/utils/exportFilesAsZip.js
 import JSZip from "jszip";
-import { saveAs } from "file-saver";
+import { Platform } from "react-native";
 import { getReportData } from "../data/reportData";
 
-// Mapeia os IDs das seções para nomes mais descritivos
+let saveAs, FileSystem, Sharing;
+if (Platform.OS === "web") {
+  saveAs = require("file-saver").saveAs;
+} else {
+  FileSystem = require("expo-file-system");
+  Sharing = require("expo-sharing");
+}
+
 const sectionNames = {
   3.1: "3.1 Cópia da documentação dos envolvidos",
   3.2: "3.2 Pedido de Esclarecimento ao Operador",
@@ -21,7 +27,6 @@ export async function exportFilesAsZip() {
 
   for (const sectionId in files) {
     const sectionFiles = files[sectionId];
-
     if (!sectionFiles || sectionFiles.length === 0) continue;
 
     const folderName = sectionNames[sectionId] || `Secao_${sectionId}`;
@@ -29,18 +34,46 @@ export async function exportFilesAsZip() {
 
     for (const file of sectionFiles) {
       try {
-        const response = await fetch(file.uri);
-        const blob = await response.blob();
+        if (!file.uri || typeof file.uri !== "string") {
+          console.warn(`URI inválido para o ficheiro ${file.name}`);
+          continue;
+        }
 
-        folder.file(file.name, blob);
-      } catch (error) {
-        console.warn(`Erro ao buscar o arquivo ${file.name}:`, error);
+        console.log(`📄 A ler localmente ${file.name} de:`, file.uri);
+
+        const base64Content = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        folder.file(file.name, base64Content, { base64: true });
+      } catch (err) {
+        console.warn(`❌ Erro ao processar localmente ${file.name}:`, err);
+        continue;
       }
     }
   }
 
-  zip.generateAsync({ type: "blob" }).then((content) => {
+  if (Platform.OS === "web") {
+    const content = await zip.generateAsync({ type: "blob" });
     saveAs(content, "relatorio_anexos.zip");
-    console.log("[exportFilesAsZip] Arquivos exportados com sucesso.");
-  });
+    console.log("[Web] Zip exportado com sucesso.");
+  } else {
+    console.log("➡️ A gerar conteúdo ZIP...");
+    const content = await zip.generateAsync({ type: "base64" });
+
+    console.log("📦 A gravar ficheiro ZIP...");
+    const zipPath = FileSystem.documentDirectory + "relatorio_anexos.zip";
+
+    await FileSystem.writeAsStringAsync(zipPath, content, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    console.log("✅ Ficheiro ZIP gravado em:", zipPath);
+
+    const fileInfo = await FileSystem.getInfoAsync(zipPath);
+    console.log("📂 Existe ZIP?", fileInfo.exists, "| Tamanho:", fileInfo.size);
+
+    console.log("📤 A partilhar...");
+    await Sharing.shareAsync(zipPath);
+    console.log("✅ Partilha concluída.");
+  }
 }

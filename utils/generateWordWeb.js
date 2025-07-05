@@ -7,27 +7,32 @@ export async function generateWordReportWeb() {
   console.log("✅ generateWordReportWeb foi chamado!");
   const data = getReportData();
 
-  // Validação reforçada
   if (!data || typeof data !== "object") {
-    throw new Error(
-      "Dados do relatório são inválidos ou não foram carregados."
+    alert("Erro: dados do relatório estão vazios ou corrompidos.");
+    return;
+  }
+
+  const isEmpty =
+    !data.summary &&
+    !data.vehicleA &&
+    !data.vehicleB &&
+    !data.dateofoccurrence &&
+    !data.DamageCausedDescription;
+
+  if (isEmpty) {
+    alert(
+      "O relatório está incompleto. Por favor, preencha os dados antes de gerar o documento."
     );
+    return;
   }
 
   function getNameFromCauseData(causeData, typeId, categoryId, subcategoryId) {
-    // 1. Encontrar o tipo
     const type = causeData.types.find((t) => t.id === typeId);
-
-    // 2. Encontrar a categoria (dentro do categories[typeId])
     const category = causeData.categories[typeId]?.find(
       (c) => c.id === categoryId
     );
-
-    // 3. Construir a chave para subcategorias (formato "typeId-categoryNum")
-    const categoryNum = categoryId?.split("-")[1]; // extrai o número da categoria (parte após o '-')
+    const categoryNum = categoryId?.split("-")[1];
     const subcategoryKey = `${typeId}-${categoryNum}`;
-
-    // 4. Encontrar a subcategoria
     const subcategory = causeData.subcategories[subcategoryKey]?.find(
       (s) => s.id === subcategoryId
     );
@@ -39,17 +44,12 @@ export async function generateWordReportWeb() {
     };
   }
 
-  const typeId = data.RootCause?.rootCauseType;
-  const categoryId = data.RootCause?.rootCauseCategory;
-  const subcategoryId = data.RootCause?.rootCauseSubcategory;
-
-  const names = getNameFromCauseData(
+  const { typeName, categoryName, subcategoryName } = getNameFromCauseData(
     causeData,
     data.RootCause?.rootCauseType,
     data.RootCause?.rootCauseCategory,
     data.RootCause?.rootCauseSubcategory
   );
-  const { typeName, categoryName, subcategoryName } = names;
 
   try {
     const doc = new Document({
@@ -278,17 +278,14 @@ export async function generateWordReportWeb() {
             new Paragraph({
               text: data.RootCause?.contributingFactors || "N/A",
             }),
-
             new Paragraph({ text: "Tipo de Causa", bold: true }),
-            new Paragraph({ text: `Tipo: ${names.typeName}` }),
-            new Paragraph({ text: `Categoria: ${names.categoryName}` }),
-            new Paragraph({ text: `Subcategoria: ${names.subcategoryName}` }),
-
+            new Paragraph({ text: `Tipo: ${typeName}` }),
+            new Paragraph({ text: `Categoria: ${categoryName}` }),
+            new Paragraph({ text: `Subcategoria: ${subcategoryName}` }),
             new Paragraph({ text: "Medidas Mitigatorias", bold: true }),
             new Paragraph({
               text: `${data.RootCause?.mitigatingmeasures || "N/A"}`,
             }),
-
             new Paragraph({ text: "Outras Ações Preventivas", bold: true }),
             new Paragraph({
               text: `${data.RootCause?.preventiveactions || "N/A"}`,
@@ -331,11 +328,21 @@ export async function generateWordReportWeb() {
       ],
     });
 
-    const blob = await Packer.toBlob(doc);
+    let blob;
+    try {
+      blob = await Packer.toBlob(doc);
+    } catch (err) {
+      console.error("Erro ao converter o documento para blob:", err);
+      alert(
+        "Erro ao gerar o ficheiro Word. Verifique se os dados estão completos."
+      );
+      return;
+    }
+
     saveAs(blob, "RelatorioAcidente.docx");
     console.log("✅ Relatório gerado com sucesso!");
   } catch (error) {
-    console.error("❌ Erro ao gerar o relatório:", error);
-    throw error; // Propaga o erro para ser tratado no chamador
+    console.error("❌ Erro geral ao gerar o relatório:", error);
+    alert("Ocorreu um erro inesperado. Tente novamente.");
   }
 }

@@ -1,39 +1,18 @@
 import { Alert, Platform } from "react-native";
 
+// Função principal de exibição de opções de exportação
 export const showExportOptions = async () => {
-  const isWeb = Platform.OS === "web";
+  console.log("🔧 showExportOptions chamado — Platform.OS:", Platform.OS);
 
-  const handleGenerateReport = async ({ share }) => {
-    try {
-      if (isWeb) {
-        const { generateWordReportWeb } = require("../utils/generateWordWeb");
-        await generateWordReportWeb();
-        window.alert("Relatório descarregado com sucesso!");
-      } else {
-        const { generateWordReport } = require("../utils/generateWord");
-        const fileUri = await generateWordReport(share);
-        if (share) {
-          // Partilha feita dentro da generateWordReport
-        } else {
-          console.log("Relatório guardado em:", fileUri);
-          Alert.alert("Sucesso", "Relatório guardado com sucesso!");
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao gerar o relatório:", error);
-      isWeb
-        ? window.alert("Erro ao gerar o relatório.")
-        : Alert.alert("Erro", "Não foi possível gerar o relatório.");
-    }
-  };
-
-  // Web: gera automaticamente, não mostra Alert
-  if (isWeb) {
-    await handleGenerateReport({ share: false }); // ou true, conforme tua lógica
+  if (Platform.OS === "web") {
+    console.log(
+      "🔧 Web branch — chamando handleGenerateReport com share:false"
+    );
+    await handleGenerateReport({ share: false });
     return;
   }
 
-  // Mobile: mostra opções
+  // Ramo Mobile: exibe alerta nativo com opções
   Alert.alert(
     "Exportar Relatório",
     "Escolha como deseja exportar o relatório:",
@@ -50,4 +29,30 @@ export const showExportOptions = async () => {
     ],
     { cancelable: true }
   );
+};
+
+// Função que efetivamente gera o relatório (Web ou Mobile)
+const handleGenerateReport = async ({ share }) => {
+  console.log("🔧 handleGenerateReport chamado — share:", share);
+
+  try {
+    if (Platform.OS === "web") {
+      console.log("🔧 Generating Word Web...");
+      const { generateWordReportWeb } = require("./generateWordWeb");
+      await generateWordReportWeb();
+      window.alert("✅ Relatório descarregado com sucesso!");
+    } else {
+      console.log("🔧 Generating Word Mobile...");
+      const { generateWordReport } = require("./generateWord");
+      const fileUri = await generateWordReport(share);
+      // Aqui você pode adicionar lógica de share ou salvar local no Mobile
+    }
+  } catch (error) {
+    console.error("❌ Erro ao gerar o relatório:", error);
+    if (Platform.OS === "web") {
+      window.alert("❌ Ocorreu um erro inesperado. Tente novamente.");
+    } else {
+      Alert.alert("Erro", "Não foi possível gerar o relatório.");
+    }
+  }
 };

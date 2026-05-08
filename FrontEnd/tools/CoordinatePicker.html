@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <title>PDF Coordinate Picker</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+
+      .wrap {
+        position: relative;
+        display: inline-block;
+        border: 1px solid #ccc;
+        line-height: 0;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .grid-line {
+        position: absolute;
+        background: rgba(120, 120, 120, 0.18);
+      }
+
+      .grid-line.major {
+        background: rgba(90, 90, 90, 0.35);
+      }
+
+      .grid-label {
+        position: absolute;
+        font-size: 9px;
+        color: #666;
+        font-family: Consolas, monospace;
+        pointer-events: none;
+        background: rgba(255, 255, 255, 0.7);
+        padding: 1px 2px;
+      }
+
+      .marker {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: red;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 20;
+      }
+
+      .marker.second {
+        background: blue;
+      }
+
+      .box {
+        position: absolute;
+        border: 2px solid red;
+        pointer-events: none;
+        box-sizing: border-box;
+        z-index: 19;
+      }
+
+      .field-box {
+        position: absolute;
+        border: 2px solid red;
+        box-sizing: border-box;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .field-label {
+        position: absolute;
+        font-size: 10px;
+        color: red;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 1px 3px;
+        pointer-events: none;
+        z-index: 11;
+      }
+
+      .text-point {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: blue;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 12;
+      }
+
+      .text-label {
+        position: absolute;
+        font-size: 10px;
+        color: blue;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 1px 3px;
+        pointer-events: none;
+        z-index: 13;
+      }
+
+      .panel {
+        margin-top: 14px;
+        padding: 12px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        width: 820px;
+        max-width: 100%;
+        white-space: pre-wrap;
+        font-family: Consolas, monospace;
+      }
+
+      .controls {
+        margin-bottom: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      input {
+        padding: 6px 8px;
+        font-size: 14px;
+        width: 180px;
+      }
+
+      button {
+        padding: 6px 10px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      label.inline {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Escolher coordenadas do PDF</h2>
+    <p>
+      1º clique = canto inferior esquerdo do campo<br />
+      2º clique = canto superior direito do campo
+    </p>
+
+    <div class="controls">
+      <label>
+        Nome do campo:
+        <input id="fieldName" value="driverA" />
+      </label>
+
+      <button id="resetBtn">Limpar seleção</button>
+
+      <label class="inline">
+        <input type="checkbox" id="toggleGrid" checked />
+        Mostrar quadriculado
+      </label>
+
+      <label class="inline">
+        <input type="checkbox" id="toggleFields" checked />
+        Mostrar campos existentes
+      </label>
+    </div>
+
+    <div style="margin-bottom: 12px">
+      <label for="pageSelect"><strong>Página:</strong></label>
+      <select id="pageSelect">
+        <option value="1">Página 1</option>
+        <option value="2">Página 2</option>
+        <option value="3">Página 3</option>
+        <option value="4">Página 4</option>
+        <option value="5">Página 5</option>
+      </select>
+    </div>
+
+    <div class="wrap" id="wrap">
+      <img id="pageImage" src="./page1.jpg" alt="Página" />
+
+      <div id="gridLayer" class="overlay"></div>
+      <div id="fieldsLayer" class="overlay"></div>
+
+      <div id="marker1" class="marker" style="display: none"></div>
+      <div id="marker2" class="marker second" style="display: none"></div>
+      <div id="box" class="box" style="display: none"></div>
+    </div>
+
+    <div class="panel" id="output">À espera de cliques...</div>
+
+    <script>
+      const img = document.getElementById("pageImage");
+      const marker1 = document.getElementById("marker1");
+      const marker2 = document.getElementById("marker2");
+      const box = document.getElementById("box");
+      const output = document.getElementById("output");
+      const fieldNameInput = document.getElementById("fieldName");
+      const resetBtn = document.getElementById("resetBtn");
+      const gridLayer = document.getElementById("gridLayer");
+      const fieldsLayer = document.getElementById("fieldsLayer");
+      const toggleGrid = document.getElementById("toggleGrid");
+      const toggleFields = document.getElementById("toggleFields");
+
+      const PDF_WIDTH = 595;
+      const PDF_HEIGHT = 842;
+
+      const PAGE1_FIELDS = {
+        summary: {
+          x: 167, //Início da caixa no eixo horizontal (esquerda → direita)
+          y: 709, //Base da caixa (de baixo → cima)
+          w: 363, //Largura da caixa
+          h: 14, //Altura da caixa
+          textX: 167, //Onde o texto começa no eixo X
+          textY: 718, //Onde o texto começa no eixo Y
+          label: "summary",
+        },
+        vehicleA: {
+          x: 185,
+          y: 626,
+          w: 345,
+          h: 14,
+          textX: 185,
+          textY: 634,
+          label: "vehicleA",
+        },
+        falsecA: {
+          x: 251,
+          y: 602,
+          w: 279,
+          h: 14,
+          textX: 251,
+          textY: 610,
+          label: "falsecA",
+        },
+        enterpriseA: {
+          x: 203,
+          y: 577,
+          w: 326,
+          h: 14,
+          textX: 203,
+          textY: 585,
+          label: "enterpriseA",
+        },
+        vehicleB: {
+          x: 185,
+          y: 485,
+          w: 344,
+          h: 14,
+          textX: 185,
+          textY: 493,
+          label: "vehicleB",
+        },
+        DamageCausedDescription: {
+          x: 70,
+          y: 180,
+          w: 470,
+          h: 55,
+          textX: 65,
+          textY: 183,
+          label: "DamageCausedDescription",
+        },
+        falsecB: {
+          x: 250,
+          y: 462,
+          w: 276,
+          h: 14,
+          textX: 250,
+          textY: 471,
+          label: "falsecB",
+        },
+        enterpriseB: {
+          x: 200,
+          y: 437,
+          w: 326,
+          h: 14,
+          textX: 200,
+          textY: 446,
+          label: "enterpriseB",
+        },
+        dateofoccurrence: {
+          x: 151,
+          y: 345,
+          w: 376,
+          h: 14,
+          textX: 151,
+          textY: 354,
+          label: "dateofoccurrence",
+        },
+        timeofoccurrence: {
+          x: 151,
+          y: 321,
+          w: 377,
+          h: 14,
+          textX: 151,
+          textY: 330,
+          label: "timeofoccurrence",
+        },
+        placeofoccurrence: {
+          x: 180,
+          y: 297,
+          w: 348,
+          h: 14,
+          textX: 180,
+          textY: 306,
+          label: "placeofoccurrence",
+        },
+      };
+
+      const PAGE2_FIELDS = {
+        driverAName: {
+          x: 160,
+          y: 653,
+          w: 370,
+          h: 14,
+          textX: 160,
+          textY: 662,
+          label: "driverAName",
+        },
+        driverAEnterprise: {
+          x: 199,
+          y: 629,
+          w: 333,
+          h: 14,
+          textX: 199,
+          textY: 638,
+          label: "driverAEnterprise",
+        },
+        driverAEmployeeNumber: {
+          x: 277,
+          y: 605,
+          w: 255,
+          h: 14,
+          textX: 277,
+          textY: 614,
+          label: "driverAEmployeeNumber",
+        },
+        driverAEmployeeFunction: {
+          x: 197,
+          y: 582,
+          w: 332,
+          h: 14,
+          textX: 197,
+          textY: 591,
+          label: "driverAEmployeeFunction",
+        },
+        driverALicenseNumberANA: {
+          x: 302,
+          y: 558,
+          w: 229,
+          h: 14,
+          textX: 302,
+          textY: 567,
+          label: "driverALicenseNumberANA",
+        },
+        driverAValidityANA: {
+          x: 367,
+          y: 534,
+          w: 163,
+          h: 14,
+          textX: 367,
+          textY: 543,
+          label: "driverAValidityANA",
+        },
+        driverACategoryANA: {
+          x: 296,
+          y: 510,
+          w: 235,
+          h: 14,
+          textX: 296,
+          textY: 519,
+          label: "driverACategoryANA",
+        },
+        driverACivilLicenseNumber: {
+          x: 305,
+          y: 486,
+          w: 225,
+          h: 14,
+          textX: 305,
+          textY: 495,
+          label: "driverACivilLicenseNumber",
+        },
+        driverAValidityCivil: {
+          x: 363,
+          y: 463,
+          w: 168,
+          h: 14,
+          textX: 363,
+          textY: 472,
+          label: "driverAValidityCivil",
+        },
+        driverACategoryCivil: {
+          x: 293,
+          y: 439,
+          w: 237,
+          h: 14,
+          textX: 293,
+          textY: 448,
+          label: "driverACategoryCivil",
+        },
+        driverAAdmitionDate: {
+          x: 270,
+          y: 415,
+          w: 260,
+          h: 14,
+          textX: 270,
+          textY: 424,
+          label: "driverAAdmitionDate",
+        },
+        driverAContractType: {
+          x: 256,
+          y: 391,
+          w: 274,
+          h: 14,
+          textX: 256,
+          textY: 400,
+          label: "driverAContractType",
+        },
+        driverAFormation: {
+          x: 244,
+          y: 367,
+          w: 286,
+          h: 14,
+          textX: 244,
+          textY: 376,
+          label: "driverAFormation",
+        },
+        driverAShiftTime: {
+          x: 253,
+          y: 344,
+          w: 277,
+          h: 14,
+          textX: 253,
+          textY: 353,
+          label: "driverAShiftTime",
+        },
+        driverADayShift: {
+          x: 207,
+          y: 320,
+          w: 323,
+          h: 14,
+          textX: 207,
+          textY: 329,
+          label: "driverADayShift",
+        },
+        driverADaysOff: {
+          x: 329,
+          y: 295,
+          w: 201,
+          h: 14,
+          textX: 329,
+          textY: 304,
+          label: "driverADaysOff",
+        },
+        driverABreaks: {
+          x: 351,
+          y: 272,
+          w: 179,
+          h: 14,
+          textX: 351,
+          textY: 281,
+          label: "driverABreaks",
+        },
+        driverAIncidentHistory: {
+          x: 262,
+          y: 248,
+          w: 268,
+          h: 14,
+          textX: 262,
+          textY: 257,
+          label: "driverAIncidentHistory",
+        },
+        driverADescriptionFactsOperator: {
+          x: 69,
+          y: 133,
+          w: 461,
+          h: 90,
+          textX: 74,
+          textY: 136,
+          label: "driverADescriptionFactsOperator",
+        },
+      };
+      const PAGE3_FIELDS = {
+        driverBName: {
+          x: 160,
+          y: 653,
+          w: 370,
+          h: 14,
+          textX: 160,
+          textY: 662,
+          label: "driverBName",
+        },
+        driverBEnterprise: {
+          x: 199,
+          y: 629,
+          w: 333,
+          h: 14,
+          textX: 199,
+          textY: 638,
+          label: "driverBEnterprise",
+        },
+        driverBEmployeeNumber: {
+          x: 277,
+          y: 605,
+          w: 255,
+          h: 14,
+          textX: 277,
+          textY: 614,
+          label: "driverBEmployeeNumber",
+        },
+        driverBEmployeeFunction: {
+          x: 197,
+          y: 582,
+          w: 332,
+          h: 14,
+          textX: 197,
+          textY: 591,
+          label: "driverBEmployeeFunction",
+        },
+        driverBLicenseNumberANA: {
+          x: 302,
+          y: 558,
+          w: 229,
+          h: 14,
+          textX: 302,
+          textY: 567,
+          label: "driverBLicenseNumberANA",
+        },
+        driverBValidityANA: {
+          x: 367,
+          y: 534,
+          w: 163,
+          h: 14,
+          textX: 367,
+          textY: 543,
+          label: "driverBValidityANA",
+        },
+        driverBCategoryANA: {
+          x: 296,
+          y: 510,
+          w: 235,
+          h: 14,
+          textX: 296,
+          textY: 519,
+          label: "driverBCategoryANA",
+        },
+        driverBCivilLicenseNumber: {
+          x: 305,
+          y: 486,
+          w: 225,
+          h: 14,
+          textX: 305,
+          textY: 495,
+          label: "driverBCivilLicenseNumber",
+        },
+        driverBValidityCivil: {
+          x: 363,
+          y: 463,
+          w: 168,
+          h: 14,
+          textX: 363,
+          textY: 472,
+          label: "driverBValidityCivil",
+        },
+        driverBCategoryCivil: {
+          x: 293,
+          y: 439,
+          w: 237,
+          h: 14,
+          textX: 293,
+          textY: 448,
+          label: "driverBCategoryCivil",
+        },
+        driverBAdmitionDate: {
+          x: 270,
+          y: 415,
+          w: 260,
+          h: 14,
+          textX: 270,
+          textY: 424,
+          label: "driverBAdmitionDate",
+        },
+        driverBContractType: {
+          x: 256,
+          y: 391,
+          w: 274,
+          h: 14,
+          textX: 256,
+          textY: 400,
+          label: "driverBContractType",
+        },
+        driverBFormation: {
+          x: 244,
+          y: 367,
+          w: 286,
+          h: 14,
+          textX: 244,
+          textY: 376,
+          label: "driverBFormation",
+        },
+        driverBShiftTime: {
+          x: 253,
+          y: 344,
+          w: 277,
+          h: 14,
+          textX: 253,
+          textY: 353,
+          label: "driverBShiftTime",
+        },
+        driverBDayShift: {
+          x: 207,
+          y: 320,
+          w: 323,
+          h: 14,
+          textX: 207,
+          textY: 329,
+          label: "driverBDayShift",
+        },
+        driverBDaysOff: {
+          x: 329,
+          y: 295,
+          w: 201,
+          h: 14,
+          textX: 329,
+          textY: 304,
+          label: "driverBDaysOff",
+        },
+        driverBBreaks: {
+          x: 351,
+          y: 272,
+          w: 179,
+          h: 14,
+          textX: 351,
+          textY: 281,
+          label: "driverBBreaks",
+        },
+        driverBIncidentHistory: {
+          x: 262,
+          y: 248,
+          w: 268,
+          h: 14,
+          textX: 262,
+          textY: 257,
+          label: "driverBIncidentHistory",
+        },
+        driverBDescriptionFactsOperator: {
+          x: 69,
+          y: 133,
+          w: 461,
+          h: 90,
+          textX: 74,
+          textY: 136,
+          label: "driverBDescriptionFactsOperator",
+        },
+      };
+      const PAGE4_FIELDS = {
+        contributingFactors: {
+          x: 252,
+          y: 671,
+          w: 278,
+          h: 14,
+          textX: 252,
+          textY: 680,
+          label: "contributingFactors",
+        },
+        rootCauseType: {
+          x: 111,
+          y: 601,
+          w: 418,
+          h: 14,
+          textX: 111,
+          textY: 610,
+          label: "rootCauseType",
+        },
+        rootCauseCategory: {
+          x: 147,
+          y: 577,
+          w: 384,
+          h: 14,
+          textX: 147,
+          textY: 586,
+          label: "rootCauseCategory",
+        },
+        rootCauseSubcategory: {
+          x: 172,
+          y: 554,
+          w: 360,
+          h: 14,
+          textX: 172,
+          textY: 563,
+          label: "rootCauseSubcategory",
+        },
+        preventiveactions: {
+          x: 69,
+          y: 428,
+          w: 459,
+          h: 74,
+          textX: 74,
+          textY: 431,
+          label: "preventiveactions",
+        },
+      };
+      const PAGE5_FIELDS = {
+        severityLevel: {
+          x: 368,
+          y: 672,
+          w: 164,
+          h: 14,
+          textX: 368,
+          textY: 681,
+          label: "severityLevel",
+        },
+        frequencyLevel: {
+          x: 343,
+          y: 648,
+          w: 191,
+          h: 14,
+          textX: 343,
+          textY: 657,
+          label: "frequencyLevel",
+        },
+        riskLevel: {
+          x: 254,
+          y: 581,
+          w: 280,
+          h: 14,
+          textX: 254,
+          textY: 590,
+          label: "riskLevel",
+        },
+        requiredActions: {
+          x: 297,
+          y: 558,
+          w: 238,
+          h: 14,
+          textX: 297,
+          textY: 567,
+          label: "requiredActions",
+        },
+        mitigatingmeasures: {
+          x: 269,
+          y: 517,
+          w: 265,
+          h: 14,
+          textX: 269,
+          textY: 526,
+          label: "mitigatingmeasures",
+        },
+        severityActionLevel: {
+          x: 306,
+          y: 476,
+          w: 227,
+          h: 14,
+          textX: 306,
+          textY: 485,
+          label: "severityActionLevel",
+        },
+        frequencyActionLevel: {
+          x: 294,
+          y: 453,
+          w: 240,
+          h: 14,
+          textX: 294,
+          textY: 462,
+          label: "frequencyActionLevel",
+        },
+        finalRisk: {
+          x: 347,
+          y: 430,
+          w: 188,
+          h: 14,
+          textX: 347,
+          textY: 439,
+          label: "finalRisk",
+        },
+        finalAcceptability: {
+          x: 279,
+          y: 388,
+          w: 254,
+          h: 14,
+          textX: 279,
+          textY: 397,
+          label: "finalAcceptability",
+        },
+        conclusion: {
+          x: 70,
+          y: 261,
+          w: 462,
+          h: 80,
+          textX: 70,
+          textY: 270,
+          label: "conclusion",
+        },
+      };
+
+      let firstClick = null;
+      let secondClick = null;
+
+      function visualToPdf(rect, clickX, clickY) {
+        const scaleX = PDF_WIDTH / rect.width;
+        const scaleY = PDF_HEIGHT / rect.height;
+
+        return {
+          x: clickX * scaleX,
+          y: PDF_HEIGHT - clickY * scaleY,
+        };
+      }
+
+      const PAGE_CONFIG = {
+        1: {
+          image: "./page1.jpg",
+          fields: PAGE1_FIELDS,
+        },
+        2: {
+          image: "./page2.jpg",
+          fields: PAGE2_FIELDS,
+        },
+        3: {
+          image: "./page3.jpg",
+          fields: PAGE3_FIELDS,
+        },
+        4: {
+          image: "./page4.jpg",
+          fields: PAGE4_FIELDS,
+        },
+        5: {
+          image: "./page5.jpg",
+          fields: PAGE5_FIELDS,
+        },
+      };
+
+      let currentPage = 1;
+
+      const pageImage = document.getElementById("pageImage");
+      const pageSelect = document.getElementById("pageSelect");
+
+      function getCurrentFields() {
+        return PAGE_CONFIG[currentPage].fields;
+      }
+
+      function switchPage(pageNumber) {
+        currentPage = Number(pageNumber);
+
+        const config = PAGE_CONFIG[currentPage];
+        pageImage.src = config.image;
+
+        resetSelection(); // limpa cliques
+        redrawOverlays(); // redesenha grid e caixas
+      }
+
+      pageSelect.addEventListener("change", (e) => {
+        switchPage(e.target.value);
+      });
+
+      function pdfToVisual(rect, pdfX, pdfY) {
+        const scaleX = rect.width / PDF_WIDTH;
+        const scaleY = rect.height / PDF_HEIGHT;
+
+        return {
+          x: pdfX * scaleX,
+          y: rect.height - pdfY * scaleY,
+        };
+      }
+
+      function resetSelection() {
+        firstClick = null;
+        secondClick = null;
+        marker1.style.display = "none";
+        marker2.style.display = "none";
+        box.style.display = "none";
+        output.textContent = "À espera de cliques...";
+      }
+
+      function drawGrid() {
+        gridLayer.innerHTML = "";
+        if (!toggleGrid.checked) return;
+
+        const rect = img.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        for (let x = 0; x <= PDF_WIDTH; x += 25) {
+          const pos = pdfToVisual(rect, x, 0).x;
+          const line = document.createElement("div");
+          line.className = `grid-line ${x % 100 === 0 ? "major" : ""}`;
+          line.style.left = `${pos}px`;
+          line.style.top = `0px`;
+          line.style.width = `${x % 100 === 0 ? 1.5 : 1}px`;
+          line.style.height = `${rect.height}px`;
+          gridLayer.appendChild(line);
+
+          if (x < PDF_WIDTH) {
+            const label = document.createElement("div");
+            label.className = "grid-label";
+            label.style.left = `${pos + 2}px`;
+            label.style.top = `2px`;
+            label.textContent = x;
+            gridLayer.appendChild(label);
+          }
+        }
+
+        for (let y = 0; y <= PDF_HEIGHT; y += 25) {
+          const pos = pdfToVisual(rect, 0, y).y;
+          const line = document.createElement("div");
+          line.className = `grid-line ${y % 100 === 0 ? "major" : ""}`;
+          line.style.left = `0px`;
+          line.style.top = `${pos}px`;
+          line.style.width = `${rect.width}px`;
+          line.style.height = `${y % 100 === 0 ? 1.5 : 1}px`;
+          gridLayer.appendChild(line);
+
+          if (y < PDF_HEIGHT) {
+            const label = document.createElement("div");
+            label.className = "grid-label";
+            label.style.left = `2px`;
+            label.style.top = `${pos + 2}px`;
+            label.textContent = y;
+            gridLayer.appendChild(label);
+          }
+        }
+      }
+
+      function drawExistingFields() {
+        fieldsLayer.innerHTML = "";
+        if (!toggleFields.checked) return;
+
+        const rect = img.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        Object.values(getCurrentFields()).forEach((field) => {
+          const bottomLeft = pdfToVisual(rect, field.x, field.y);
+          const topRight = pdfToVisual(
+            rect,
+            field.x + field.w,
+            field.y + field.h,
+          );
+          const textPoint = pdfToVisual(rect, field.textX, field.textY);
+
+          const fieldBox = document.createElement("div");
+          fieldBox.className = "field-box";
+          fieldBox.style.left = `${bottomLeft.x}px`;
+          fieldBox.style.top = `${topRight.y}px`;
+          fieldBox.style.width = `${topRight.x - bottomLeft.x}px`;
+          fieldBox.style.height = `${bottomLeft.y - topRight.y}px`;
+          fieldsLayer.appendChild(fieldBox);
+
+          const fieldLabel = document.createElement("div");
+          fieldLabel.className = "field-label";
+          fieldLabel.style.left = `${bottomLeft.x + 2}px`;
+          fieldLabel.style.top = `${topRight.y - 16}px`;
+          fieldLabel.textContent = field.label;
+          fieldsLayer.appendChild(fieldLabel);
+
+          const point = document.createElement("div");
+          point.className = "text-point";
+          point.style.left = `${textPoint.x}px`;
+          point.style.top = `${textPoint.y}px`;
+          fieldsLayer.appendChild(point);
+
+          const textLabel = document.createElement("div");
+          textLabel.className = "text-label";
+          textLabel.style.left = `${textPoint.x + 6}px`;
+          textLabel.style.top = `${textPoint.y - 6}px`;
+          textLabel.textContent = `${field.label} text`;
+          fieldsLayer.appendChild(textLabel);
+        });
+      }
+
+      function redrawOverlays() {
+        drawGrid();
+        drawExistingFields();
+      }
+
+      resetBtn.addEventListener("click", resetSelection);
+      toggleGrid.addEventListener("change", drawGrid);
+      toggleFields.addEventListener("change", drawExistingFields);
+      window.addEventListener("resize", redrawOverlays);
+      img.addEventListener("load", redrawOverlays);
+
+      img.addEventListener("click", (e) => {
+        const rect = img.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        const pdfPoint = visualToPdf(rect, clickX, clickY);
+
+        if (!firstClick) {
+          firstClick = {
+            visualX: clickX,
+            visualY: clickY,
+            pdfX: pdfPoint.x,
+            pdfY: pdfPoint.y,
+          };
+
+          marker1.style.display = "block";
+          marker1.style.left = `${clickX}px`;
+          marker1.style.top = `${clickY}px`;
+
+          output.textContent = `Primeiro clique registado.
+
+          Visual:
+          x = ${clickX.toFixed(2)}
+          y = ${clickY.toFixed(2)}
+
+          PDF:
+          x = ${pdfPoint.x.toFixed(2)}
+          y = ${pdfPoint.y.toFixed(2)}
+
+          Agora faz o 2º clique no canto superior direito do campo.`;
+          return;
+        }
+
+        secondClick = {
+          visualX: clickX,
+          visualY: clickY,
+          pdfX: pdfPoint.x,
+          pdfY: pdfPoint.y,
+        };
+
+        marker2.style.display = "block";
+        marker2.style.left = `${clickX}px`;
+        marker2.style.top = `${clickY}px`;
+
+        const left = Math.min(firstClick.visualX, secondClick.visualX);
+        const top = Math.min(firstClick.visualY, secondClick.visualY);
+        const width = Math.abs(secondClick.visualX - firstClick.visualX);
+        const height = Math.abs(secondClick.visualY - firstClick.visualY);
+
+        box.style.display = "block";
+        box.style.left = `${left}px`;
+        box.style.top = `${top}px`;
+        box.style.width = `${width}px`;
+        box.style.height = `${height}px`;
+
+        const fieldX = Math.min(firstClick.pdfX, secondClick.pdfX);
+        const fieldY = Math.min(firstClick.pdfY, secondClick.pdfY);
+        const fieldW = Math.abs(secondClick.pdfX - firstClick.pdfX);
+        const fieldH = Math.abs(secondClick.pdfY - firstClick.pdfY);
+
+        const textX = fieldX + 5;
+        const textY = fieldY + 3;
+
+        const fieldName = (fieldNameInput.value || "campo").trim();
+
+        const pageImage = document.getElementById("pageImage");
+        const pageSelect = document.getElementById("pageSelect");
+
+        output.textContent = `Campo: ${fieldName}
+
+      1º clique (canto inferior esquerdo)
+      Visual:
+      x = ${firstClick.visualX.toFixed(2)}
+      y = ${firstClick.visualY.toFixed(2)}
+
+      PDF:
+      x = ${firstClick.pdfX.toFixed(2)}
+      y = ${firstClick.pdfY.toFixed(2)}
+
+      2º clique (canto superior direito)
+      Visual:
+      x = ${secondClick.visualX.toFixed(2)}
+      y = ${secondClick.visualY.toFixed(2)}
+
+      PDF:
+      x = ${secondClick.pdfX.toFixed(2)}
+      y = ${secondClick.pdfY.toFixed(2)}
+
+      Campo calculado:
+      x = ${fieldX.toFixed(2)}
+      y = ${fieldY.toFixed(2)}
+      width = ${fieldW.toFixed(2)}
+      height = ${fieldH.toFixed(2)}
+
+      Texto sugerido:
+      textX = ${textX.toFixed(2)}
+      textY = ${textY.toFixed(2)}
+
+      Pronto para colar:
+      Página ${currentPage}
+      ${fieldName}: {
+        x: ${Math.round(fieldX)},
+        y: ${Math.round(fieldY)},
+        w: ${Math.round(fieldW)},
+        h: ${Math.round(fieldH)},
+        textX: ${Math.round(textX)},
+        textY: ${Math.round(textY)},
+        label: "${fieldName}",
+      },`;
+
+        firstClick = null;
+        secondClick = null;
+      });
+
+      redrawOverlays();
+    </script>
+  </body>
+</html>

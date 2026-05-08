@@ -1,0 +1,86 @@
+{
+  "name": "accidentreport",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:web": "expo export --platform web --output-dir dist",
+    "deploy": "npm run build:web && gh-pages -d dist",
+    "predeploy": "expo export --platform web",
+    "preinstall": "npx npm-force-resolutions"
+  },
+  "homepage": "https://SrNando1.github.io/AccidentReport",
+  "dependencies": {
+    "@expo/metro-runtime": "~5.0.4",
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/datetimepicker": "^8.4.1",
+    "@react-native-masked-view/masked-view": "^0.3.2",
+    "@react-native-picker/picker": "^2.11.4",
+    "@react-navigation/native": "^7.1.9",
+    "@react-navigation/native-stack": "^7.3.14",
+    "@react-navigation/stack": "^7.3.2",
+    "axios": "^1.10.0",
+    "buffer": "^6.0.3",
+    "cross-fetch": "^4.1.0",
+    "date-fns": "^4.1.0",
+    "docx": "^9.5.1",
+    "eventemitter3": "^5.0.1",
+    "expo": "~53.0.13",
+    "expo-dev-client": "~5.2.2",
+    "expo-document-picker": "~13.1.5",
+    "expo-file-system": "~18.1.10",
+    "expo-image-picker": "~16.1.4",
+    "expo-sharing": "~13.1.5",
+    "expo-status-bar": "~2.2.3",
+    "expo-system-ui": "~5.0.7",
+    "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.0.0",
+    "jszip": "^3.10.1",
+    "pdf-lib": "^1.17.1",
+    "react": "19.0.0",
+    "react-datepicker": "^9.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.4",
+    "react-native-chart-kit": "^6.12.0",
+    "react-native-dialog": "^9.3.0",
+    "react-native-fs": "^2.20.0",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-reanimated": "~3.17.4",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-share": "^12.0.11",
+    "react-native-svg": "^15.13.0",
+    "react-native-web": "^0.20.0",
+    "recharts": "^3.6.0",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@react-native-community/cli": "latest",
+    "gh-pages": "^6.3.0"
+  },
+  "resolutions": {
+    "twg-fetch": "npm:cross-fetch"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "buffer",
+          "cross-fetch",
+          "file-saver",
+          "jszip",
+          "docx",
+          "react-native-dialog",
+          "react-native-fs"
+        ],
+        "listUnknownPackages": false
+      }
+    }
+  }
+}
